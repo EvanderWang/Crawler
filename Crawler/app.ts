@@ -21,16 +21,17 @@ function GetSchool( road: string , sheet: any ) : string {
     return "";
 }
 
-let markHouse = (house: cheerio.Element) => {
+let markHouse = (house: cheerio.Element, $: cheerio.Static) => {
     let detailurl = house.children[0].attribs["href"];
-    let xiaoquname = house.children[1].children[1].children[0].children[1].children[0].data;
+    let xiaoquname = $(house.children[1].children[1].children[0].children[1]).text();
+    
     filtered.push([xiaoquname, detailurl]);
 
     let buffer = xlsx.build([{ name: "result", data: filtered }]);
     fs.writeFileSync('D:\\result.xlsx', buffer);
 }
 
-let trymarkHouse = (house: cheerio.Element) => {
+let trymarkHouse = (house: cheerio.Element, base$: cheerio.Static) => {
     let xiaoqustr = house.children[1].children[1].children[0].children[1].attribs["href"];
 
     request(xiaoqustr, (error, response, body: string) => {
@@ -45,7 +46,7 @@ let trymarkHouse = (house: cheerio.Element) => {
 
                 for (let j = 0; j < conatintest.length; j++) {
                     if (school.indexOf(conatintest[j]) != -1) {
-                        markHouse(house);
+                        markHouse(house, base$);
                     }
                 }
             }
@@ -64,8 +65,7 @@ let searchHouse = () => {
             let v = $('.sellListContent');
             let houses = v.children();
             for (let i = 0; i < houses.length; i++) {
-                //trymarkHouse(houses[0]);
-                markHouse(houses[i]);
+                trymarkHouse(houses[i] , $);
             }
 
             curpage += 1;
