@@ -1,7 +1,10 @@
 ﻿import request from "sync-request";
+import * as asyncrequest from "request";
 import * as cheerio from "cheerio";
 import xlsx from 'node-xlsx'; 
 import * as fs from "fs";
+
+let totalmarkcount = 0;
 
 class VSchoolList {
     constructor(public keywords: Array<string>) { }
@@ -43,7 +46,221 @@ class VSchoolFindResult {
     schoolLevel: string;
 }
 
-class VSearcher {
+class VAsyncSearcher {
+    url_basepart: string = 'https://sh.lianjia.com/ershoufang/';
+    url_pagepart: string = '/pg'
+    url_conditionpart: string = 'l2bp200ep380/';
+
+    constructor() { }
+
+    searchRegion(region: VRegion, suc: (data: Array<Array<string>>) => void) {
+        console.log("start search region : " + region.name);
+        let rtValue = new Array<Array<string>>();
+        let curidx = 0;
+
+        let backcount = 0;
+        let search = () => {
+            let i = curidx;
+            curidx += 1;
+
+            this.searchSubRegion(region.ssr.subreigons[i], region.primary, region.junior, (data: Array<Array<string>>) => {
+                rtValue = rtValue.concat(data);
+
+                backcount += 1;
+                if (backcount == region.ssr.subreigons.length) {
+                    suc(rtValue);
+                } else {
+                    search();
+                }
+            });
+        }
+        search();
+    }
+
+    private searchSubRegion(sr: VSubRegion, primary: VSchoolInfo, junior: VSchoolInfo | null, suc: (data: Array<Array<string>>) => void) {
+        console.log("start search sub region : " + sr.name);
+        let rtValue = new Array<Array<string>>();
+       
+        let listpage = request("GET", this.url_basepart + sr.urlpart + '/' + this.url_conditionpart);
+        let listpagebody = (<Buffer>listpage.getBody()).toString();
+
+        let findidx = listpagebody.indexOf('"total fl"');
+        let countsidx = listpagebody.indexOf('<span>', findidx) + 6;
+        let counteidx = listpagebody.indexOf('</span>', findidx);
+        let count = Number(listpagebody.substr(countsidx, counteidx - countsidx).trim());
+
+        let pagecount = 0;
+        if (count != 0) {
+            pagecount = Math.floor(count / 30) + 1;
+        }
+
+        if (pagecount == 0) {
+            suc(rtValue);
+        }
+
+        let finishpagecount = 0;
+        let pagefinish = (data: Array<Array<string>>) => {
+            rtValue = rtValue.concat(data);
+            finishpagecount += 1;
+            if (finishpagecount == pagecount) {
+                suc(rtValue);
+            }
+        }
+
+        for (let i = 1; i <= pagecount; i++) {
+            console.log("start search sub region " + sr.name + " page : " + i.toString());
+            this.searchPage(i, sr, primary, junior, pagefinish);
+        }
+    }
+
+    private searchPage(pagenumber: number, sr: VSubRegion, primary: VSchoolInfo, junior: VSchoolInfo | null, suc: (data: Array<Array<string>>) => void) {
+        let rtValue = new Array<Array<string>>();
+
+        let trycount = 0;
+        let markcount = 0;
+
+        asyncrequest(this.url_basepart + sr.urlpart + this.url_pagepart + pagenumber.toString() + this.url_conditionpart, (error: any, response: any, body: any) => {
+            if (!error && response.statusCode == 200) {
+                let listpagebody = body;
+                let listpage$ = cheerio.load(listpagebody);
+                let v = listpage$('.sellListContent');
+                let houses = v.children();
+                let housescount = houses.length;
+
+                let finishhousecount = 0;
+                for (let i = 0; i < houses.length; i++) {
+                    this.trymarkHouse(houses[i], listpage$, primary, junior, (data: Array<string> | null) => {
+                        if (data) {
+                            markcount += 1;
+                            console.log(sr.name + " page " + pagenumber + " finish mark : " + markcount.toString());
+                            rtValue.push(data);
+                        }
+                        trycount += 1;
+                        console.log(sr.name + " page " + pagenumber + " finish try : " + trycount.toString());
+
+                        finishhousecount += 1;
+                        if (finishhousecount == housescount) {
+                            suc(rtValue);
+                        }
+                    });
+                }
+            } else {
+                suc(rtValue);
+            }
+        });
+    }
+
+    private trymarkHouse(house: cheerio.Element, listpage$: cheerio.Static, primary: VSchoolInfo, junior: VSchoolInfo | null, suc: (data: Array<string> | null) => void) {
+        let rtValue: Array<string> | null = null;
+
+        let xiaoquurl = house.children[1].children[1].children[0].children[1].attribs["href"];
+        let xiaoquName = listpage$(house.children[1].children[1].children[0].children[1]).text();
+        let detailurl = house.children[0].attribs["href"];
+
+        asyncrequest(xiaoquurl, (error: any, response: any, body: any) => {
+            if (!error && response.statusCode == 200) {
+                let xiaoqupagebody = body;
+                let xiaoqupage$ = cheerio.load(xiaoqupagebody);
+                let xiaoquLocationStr = xiaoqupage$('.detailDesc').text();
+                let xiaoquLocations = xiaoquLocationStr.split(',');
+                for (let i = 0; i < xiaoquLocations.length; i++) {
+                    let b = xiaoquLocations[i].lastIndexOf(")");
+                    let loc = xiaoquLocations[i].substr(b + 1, xiaoquLocations[i].length - b - 1);
+                    xiaoquLocations[i] = loc;
+                }
+
+                let primaryResult: VSchoolFindResult = this.findSchool(xiaoquName, xiaoquLocations, primary);
+                let juniorResult: VSchoolFindResult | null = null;
+                if (junior) {
+                    juniorResult = this.findSchool(xiaoquName, xiaoquLocations, junior);
+                }
+
+                if (primaryResult.needMark) {
+                    rtValue = this.markHouse(house, listpage$, primaryResult, juniorResult);
+                }
+                suc(rtValue);
+            } else {
+                suc(rtValue);
+            }
+        });
+    }
+
+    private markHouse(house: cheerio.Element, listpage$: cheerio.Static, primaryResult: VSchoolFindResult, juniorResult: VSchoolFindResult | null): Array<string> {
+        let detailurl = house.children[0].attribs["href"];
+        let xiaoquname = listpage$(house.children[1].children[1].children[0].children[1]).text();
+        let price = listpage$(house.children[1].children[5].children[0].children[0]).text();
+        let houseinfo = listpage$(house.children[1].children[1].children[0]).text();
+        let houseinfos = houseinfo.split('|');
+        let size = "没找到";
+        for (let i = 0; i < houseinfos.length; i++) {
+            if (houseinfos[i].indexOf("平米") != -1) {
+                size = houseinfos[i].substr(0, houseinfos[i].indexOf("平米"));
+                break;
+            }
+        }
+        let levelinfo = listpage$(house.children[1].children[2].children[0]).text();
+        let levelinfos = levelinfo.split('-');
+        let level = levelinfos[0];
+
+        totalmarkcount += 1;
+        return [xiaoquname, price, (Number(price) * 0.35).toString(), size, (Number(price) / Number(size)).toFixed(3), level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
+    }
+
+    private findSchool(xiaoquName: string, xiaoquLocations: string[], si: VSchoolInfo): VSchoolFindResult {
+        let rtValue = new VSchoolFindResult();
+        let school = "";
+
+        for (let i = 0; i < xiaoquLocations.length; i++) {
+            let xiaoquLoc = xiaoquLocations[i];
+            school = this.tryGetSchool(xiaoquLoc, si.map);
+            if (school != "") {
+                break;
+            }
+        }
+        if (school == "") {
+            school = this.tryGetSchool(xiaoquName, si.map);
+        }
+
+        if (school != "") {
+            rtValue.needMark = true;
+            rtValue.schoolName = school;
+            if (this.checkSchoolInList(school, si.l1)) {
+                rtValue.schoolLevel = "一梯队";
+            } else if (this.checkSchoolInList(school, si.l2)) {
+                rtValue.schoolLevel = "二梯队";
+            } else {
+                rtValue.needMark = false;
+                rtValue.schoolLevel = "未列入";
+            }
+        } else {
+            rtValue.needMark = false;
+            rtValue.schoolName = "unknown";
+            rtValue.schoolLevel = "unknown";
+        }
+
+        return rtValue;
+    }
+
+    private tryGetSchool(roadorname: string, mapping: VHouseSchoolMapping): string {
+        for (let i = 1; i < mapping.mapxlsx.data.length; i++) {
+            if (mapping.mapxlsx.data[i][5] == roadorname || mapping.mapxlsx.data[i][6] == roadorname) {
+                return mapping.mapxlsx.data[i][3];
+            }
+        }
+        return "";
+    }
+
+    private checkSchoolInList(schoolname: string, list: VSchoolList): boolean {
+        for (let i = 0; i < list.keywords.length; i++) {
+            if (schoolname.indexOf(list.keywords[i]) != -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+class VSyncSearcher {
     url_basepart: string = 'https://sh.lianjia.com/ershoufang/';
     url_pagepart: string = '/pg'
     url_conditionpart: string = 'l2bp200ep380/';
@@ -73,9 +290,19 @@ class VSearcher {
             let listpage = request("GET", this.url_basepart + sr.urlpart + this.url_pagepart + curpage.toString() + this.url_conditionpart);
             let listpagebody = (<Buffer>listpage.getBody()).toString();
 
-            let tpsidx = listpagebody.indexOf('"totalPage":');
-            let tpeidx = listpagebody.indexOf(',', tpsidx);
-            let pagecount = Number(listpagebody.substr(tpsidx + 12, tpeidx - tpsidx - 12));
+            let findidx = listpagebody.indexOf('"total fl"');
+            let countsidx = listpagebody.indexOf('<span>', findidx) + 6;
+            let counteidx = listpagebody.indexOf('</span>', findidx);
+            let count = Number(listpagebody.substr(countsidx, counteidx - countsidx).trim());
+
+            let pagecount = 0;
+            if (count != 0) {
+                pagecount = Math.floor(count / 30) + 1;
+            }
+
+            if (pagecount == 0) {
+                return rtValue;
+            }
 
             let listpage$ = cheerio.load(listpagebody);
             let v = listpage$('.sellListContent');
@@ -84,7 +311,7 @@ class VSearcher {
                 let houseResult = this.trymarkHouse(houses[i], listpage$, primary, junior);
                 if (houseResult) {
                     markcount += 1;
-                    console.log("finish mark : " + trycount.toString());
+                    console.log("finish mark : " + markcount.toString());
                     rtValue.push(houseResult);
                 }
 
@@ -149,8 +376,8 @@ class VSearcher {
         let levelinfos = levelinfo.split('-');
         let level = levelinfos[0];
 
-        return [xiaoquname, price, (Number(price) * 0.35), size, level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
-
+        totalmarkcount += 1;
+        return [xiaoquname, price, (Number(price) * 0.35).toString(), size, (Number(price) / Number(size)).toFixed(3), level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
     }
 
     private findSchool(xiaoquName: string, xiaoquLocations: string[], si: VSchoolInfo): VSchoolFindResult {
@@ -215,24 +442,46 @@ class VExporter {
 
         for (let i = 0; i < regions.length; i++) {
             let filtered = new Array<Array<string>>();
-            filtered.push(["小区名称", "总价", "首付", "平米", "楼层年代", "对口小学", "小学等级", "对口中学", "中学等级", "网页地址"]);
+            filtered.push(["小区名称", "总价", "首付", "平米", "单价", "楼层年代", "对口小学", "小学等级", "对口中学", "中学等级", "网页地址"]);
             this.filteredSheets.push({ name: regions[i].name, data: filtered });
         }
 
-        this.export();
-        this.build();
-        this.export();
+        this.asyncbuild();
     }
 
-    private build() {
-        let searcher = new VSearcher();
+    private syncbuild() {
+        let searcher = new VSyncSearcher();
         for (let i = 0; i < this.regions.length; i++) {
             let searchResult = searcher.searchReigon(this.regions[i]);
             this.filteredSheets[i].data = this.filteredSheets[i].data.concat(searchResult);
         }
+        this.export();
+    }
+
+    private asyncbuild() {
+        let searcher = new VAsyncSearcher();
+        let curidx = 0;
+
+        let finishcount = 0;
+        let dosearch = () => {
+            if (curidx < this.regions.length) {
+                let i = curidx;
+                curidx += 1;
+                searcher.searchRegion(this.regions[i], (searchResult: Array<Array<string>>) => {
+                    this.filteredSheets[i].data = this.filteredSheets[i].data.concat(searchResult);
+                    finishcount += 1;
+                    if (finishcount == this.regions.length) {
+                        this.export();
+                    }
+                    dosearch();
+                })
+            }
+        }
+        dosearch();
     }
 
     private export() {
+        console.log("export total count = " + totalmarkcount);
         let buffer = xlsx.build(this.filteredSheets);
         fs.writeFileSync(this.export_file, buffer);
     }
@@ -282,5 +531,6 @@ class VRegionBuilder {
     }
 }
 
-let pudongregion = VRegionBuilder.Build("浦东", "D:\\OneDrive\\pudong_build.xlsx", "D:\\OneDrive\\pudong_xiaoxue.xls", "D:\\OneDrive\\pudong_zhongxue.xls")
-let exporter = new VExporter("D:\\result.xlsx", [pudongregion]);
+let pudongregion = VRegionBuilder.Build("浦东", "D:\\OneDrive\\pudong_build.xlsx", "D:\\OneDrive\\pudong_xiaoxue.xls", "D:\\OneDrive\\pudong_zhongxue.xls");
+let xuhuiregion = VRegionBuilder.Build("徐汇", "D:\\OneDrive\\xuhui_build.xlsx", "D:\\OneDrive\\xuhui_xiaoxue.xlsx", null);
+let exporter = new VExporter("D:\\result.xlsx", [pudongregion, xuhuiregion]);
