@@ -129,7 +129,7 @@ class VAsyncSearcher {
 
                 let finishhousecount = 0;
                 for (let i = 0; i < houses.length; i++) {
-                    this.trymarkHouse(houses[i], listpage$, primary, junior, (data: Array<string> | null) => {
+                    this.trymarkHouse(houses[i], listpage$, sr.name, primary, junior, (data: Array<string> | null) => {
                         if (data) {
                             markcount += 1;
                             console.log(sr.name + " page " + pagenumber + " finish mark : " + markcount.toString());
@@ -150,7 +150,7 @@ class VAsyncSearcher {
         });
     }
 
-    private trymarkHouse(house: cheerio.Element, listpage$: cheerio.Static, primary: VSchoolInfo, junior: VSchoolInfo | null, suc: (data: Array<string> | null) => void) {
+    private trymarkHouse(house: cheerio.Element, listpage$: cheerio.Static, srname: string, primary: VSchoolInfo, junior: VSchoolInfo | null, suc: (data: Array<string> | null) => void) {
         let rtValue: Array<string> | null = null;
 
         let xiaoquurl = house.children[1].children[1].children[0].children[1].attribs["href"];
@@ -176,7 +176,7 @@ class VAsyncSearcher {
                 }
 
                 if (primaryResult.needMark) {
-                    rtValue = this.markHouse(house, listpage$, primaryResult, juniorResult);
+                    rtValue = this.markHouse(house, listpage$, srname, primaryResult, juniorResult);
                 }
                 suc(rtValue);
             } else {
@@ -185,7 +185,7 @@ class VAsyncSearcher {
         });
     }
 
-    private markHouse(house: cheerio.Element, listpage$: cheerio.Static, primaryResult: VSchoolFindResult, juniorResult: VSchoolFindResult | null): Array<string> {
+    private markHouse(house: cheerio.Element, listpage$: cheerio.Static, srname: string, primaryResult: VSchoolFindResult, juniorResult: VSchoolFindResult | null): Array<string> {
         let detailurl = house.children[0].attribs["href"];
         let xiaoquname = listpage$(house.children[1].children[1].children[0].children[1]).text();
         let price = listpage$(house.children[1].children[5].children[0].children[0]).text();
@@ -203,7 +203,7 @@ class VAsyncSearcher {
         let level = levelinfos[0];
 
         totalmarkcount += 1;
-        return [xiaoquname, price, (Number(price) * 0.35).toString(), size, (Number(price) / Number(size)).toFixed(3), level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
+        return [xiaoquname, srname, price, (Number(price) * 0.35).toString(), size, (Number(price) / Number(size)).toFixed(3), level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
     }
 
     private findSchool(xiaoquName: string, xiaoquLocations: string[], si: VSchoolInfo): VSchoolFindResult {
@@ -308,7 +308,7 @@ class VSyncSearcher {
             let v = listpage$('.sellListContent');
             let houses = v.children();
             for (let i = 0; i < houses.length; i++) {
-                let houseResult = this.trymarkHouse(houses[i], listpage$, primary, junior);
+                let houseResult = this.trymarkHouse(houses[i], listpage$, sr.name, primary, junior);
                 if (houseResult) {
                     markcount += 1;
                     console.log("finish mark : " + markcount.toString());
@@ -328,7 +328,7 @@ class VSyncSearcher {
         return rtValue;
     }
 
-    private trymarkHouse(house: cheerio.Element, listpage$: cheerio.Static, primary: VSchoolInfo, junior: VSchoolInfo | null): Array<string> | null {
+    private trymarkHouse(house: cheerio.Element, listpage$: cheerio.Static, srname: string, primary: VSchoolInfo, junior: VSchoolInfo | null): Array<string> | null {
         let rtValue: Array<string> | null = null;
 
         let xiaoquurl = house.children[1].children[1].children[0].children[1].attribs["href"];
@@ -354,12 +354,12 @@ class VSyncSearcher {
         }
 
         if (primaryResult.needMark) {
-            rtValue = this.markHouse(house, listpage$, primaryResult, juniorResult);
+            rtValue = this.markHouse(house, listpage$, srname, primaryResult, juniorResult);
         }
         return rtValue;
     }
 
-    private markHouse(house: cheerio.Element, listpage$: cheerio.Static, primaryResult: VSchoolFindResult, juniorResult: VSchoolFindResult | null): Array<string> {
+    private markHouse(house: cheerio.Element, listpage$: cheerio.Static, srname: string, primaryResult: VSchoolFindResult, juniorResult: VSchoolFindResult | null): Array<string> {
         let detailurl = house.children[0].attribs["href"];
         let xiaoquname = listpage$(house.children[1].children[1].children[0].children[1]).text();
         let price = listpage$(house.children[1].children[5].children[0].children[0]).text();
@@ -377,7 +377,7 @@ class VSyncSearcher {
         let level = levelinfos[0];
 
         totalmarkcount += 1;
-        return [xiaoquname, price, (Number(price) * 0.35).toString(), size, (Number(price) / Number(size)).toFixed(3), level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
+        return [xiaoquname, srname, price, (Number(price) * 0.35).toString(), size, (Number(price) / Number(size)).toFixed(3), level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
     }
 
     private findSchool(xiaoquName: string, xiaoquLocations: string[], si: VSchoolInfo): VSchoolFindResult {
@@ -442,7 +442,7 @@ class VExporter {
 
         for (let i = 0; i < regions.length; i++) {
             let filtered = new Array<Array<string>>();
-            filtered.push(["小区名称", "总价", "首付", "平米", "单价", "楼层年代", "对口小学", "小学等级", "对口中学", "中学等级", "网页地址"]);
+            filtered.push(["小区名称", "区域", "总价", "首付", "平米", "单价", "楼层年代", "对口小学", "小学等级", "对口中学", "中学等级", "网页地址"]);
             this.filteredSheets.push({ name: regions[i].name, data: filtered });
         }
 
