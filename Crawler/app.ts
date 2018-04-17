@@ -49,7 +49,7 @@ class VSchoolFindResult {
 class VAsyncSearcher {
     url_basepart: string = 'https://sh.lianjia.com/ershoufang/';
     url_pagepart: string = '/pg'
-    url_conditionpart: string = 'l2bp200ep380/';
+    url_conditionpart: string = 'l2bp200ep400/';
 
     constructor() { }
 
