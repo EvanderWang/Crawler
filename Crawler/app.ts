@@ -98,38 +98,38 @@ class VAsyncSearcher {
             suc(rtValue);
         }
 
-        let finishpagecount = 0;
-        let pagefinish = (data: Array<Array<string>>) => {
-            rtValue = rtValue.concat(data);
-            finishpagecount += 1;
-            if (finishpagecount == pagecount) {
-                suc(rtValue);
-            }
-        }
-        
-        for (let i = 1; i <= pagecount; i++) {
-            console.log("start search sub region " + sr.name + " page : " + i.toString());
-            this.searchPage(i, sr, primary, junior, pagefinish);
-        }
-
-        //let curidx = 0;
-        //let backcount = 0;
-        //let search = () => {
-        //    curidx += 1;
-        //    let i = curidx;
-        //    console.log("start search sub region " + sr.name + " page : " + i.toString());
-        //
-        //    this.searchPage(i, sr, primary, junior, (data: Array<Array<string>>) => {
-        //        backcount += 1;
-        //        rtValue = rtValue.concat(data);
-        //        if (backcount == pagecount) {
-        //            suc(rtValue);
-        //        } else {
-        //            search();
-        //        }
-        //    });
+        //let finishpagecount = 0;
+        //let pagefinish = (data: Array<Array<string>>) => {
+        //    rtValue = rtValue.concat(data);
+        //    finishpagecount += 1;
+        //    if (finishpagecount == pagecount) {
+        //        suc(rtValue);
+        //    }
         //}
-        //search();
+        //
+        //for (let i = 1; i <= pagecount; i++) {
+        //    console.log("start search sub region " + sr.name + " page : " + i.toString());
+        //    this.searchPage(i, sr, primary, junior, pagefinish);
+        //}
+
+        let curidx = 0;
+        let backcount = 0;
+        let search = () => {
+            curidx += 1;
+            let i = curidx;
+            console.log("start search sub region " + sr.name + " page : " + i.toString());
+        
+            this.searchPage(i, sr, primary, junior, (data: Array<Array<string>>) => {
+                backcount += 1;
+                rtValue = rtValue.concat(data);
+                if (backcount == pagecount) {
+                    suc(rtValue);
+                } else {
+                    search();
+                }
+            });
+        }
+        search();
     }
 
     private searchPage(pagenumber: number, sr: VSubRegion, primary: VSchoolInfo, junior: VSchoolInfo | null, suc: (data: Array<Array<string>>) => void) {
@@ -222,7 +222,7 @@ class VAsyncSearcher {
         let level = levelinfos[0];
 
         totalmarkcount += 1;
-        return [xiaoquname, srname, price, (Number(price) * 0.35).toString(), size, (Number(price) / Number(size)).toFixed(3), level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
+        return [xiaoquname, srname, price, (Number(price) * 0.35).toFixed(2), size, (Number(price) / Number(size)).toFixed(3), level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
     }
 
     private findSchool(xiaoquName: string, xiaoquLocations: string[], si: VSchoolInfo): VSchoolFindResult {
@@ -396,7 +396,7 @@ class VSyncSearcher {
         let level = levelinfos[0];
 
         totalmarkcount += 1;
-        return [xiaoquname, srname, price, (Number(price) * 0.35).toString(), size, (Number(price) / Number(size)).toFixed(3), level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
+        return [xiaoquname, srname, price, (Number(price) * 0.35).toFixed(2), size, (Number(price) / Number(size)).toFixed(3), level, primaryResult.schoolName, primaryResult.schoolLevel, juniorResult ? juniorResult.schoolName : "unknown", juniorResult ? juniorResult.schoolLevel : "unknown", detailurl];
     }
 
     private findSchool(xiaoquName: string, xiaoquLocations: string[], si: VSchoolInfo): VSchoolFindResult {
