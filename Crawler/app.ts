@@ -91,7 +91,7 @@ class VAsyncSearcher {
 
         let pagecount = 0;
         if (count != 0) {
-            pagecount = Math.floor(count / 30) + 1;
+            pagecount = Math.ceil(count / 30);
         }
 
         if (pagecount == 0) {
@@ -106,11 +106,30 @@ class VAsyncSearcher {
                 suc(rtValue);
             }
         }
-
+        
         for (let i = 1; i <= pagecount; i++) {
             console.log("start search sub region " + sr.name + " page : " + i.toString());
             this.searchPage(i, sr, primary, junior, pagefinish);
         }
+
+        //let curidx = 0;
+        //let backcount = 0;
+        //let search = () => {
+        //    curidx += 1;
+        //    let i = curidx;
+        //    console.log("start search sub region " + sr.name + " page : " + i.toString());
+        //
+        //    this.searchPage(i, sr, primary, junior, (data: Array<Array<string>>) => {
+        //        backcount += 1;
+        //        rtValue = rtValue.concat(data);
+        //        if (backcount == pagecount) {
+        //            suc(rtValue);
+        //        } else {
+        //            search();
+        //        }
+        //    });
+        //}
+        //search();
     }
 
     private searchPage(pagenumber: number, sr: VSubRegion, primary: VSchoolInfo, junior: VSchoolInfo | null, suc: (data: Array<Array<string>>) => void) {
