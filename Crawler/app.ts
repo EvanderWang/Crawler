@@ -77,7 +77,7 @@ class VAsyncSearcher {
         search();
     }
 
-    private searchSubRegion(sr: VSubRegion, primary: VSchoolInfo, junior: VSchoolInfo | null, suc: (data: Array<Array<string>>) => void) {
+    searchSubRegion(sr: VSubRegion, primary: VSchoolInfo, junior: VSchoolInfo | null, suc: (data: Array<Array<string>>) => void) {
         console.log("start search sub region : " + sr.name);
         let rtValue = new Array<Array<string>>();
        
@@ -295,7 +295,7 @@ class VSyncSearcher {
         return rtValue;
     }
 
-    private searchSubRegion(sr: VSubRegion, primary: VSchoolInfo, junior: VSchoolInfo | null): Array<Array<string>> {
+    searchSubRegion(sr: VSubRegion, primary: VSchoolInfo, junior: VSchoolInfo | null): Array<Array<string>> {
         console.log("start search sub region : " + sr.name);
         let rtValue = new Array<Array<string>>();
         let curpage = 1;
@@ -507,6 +507,79 @@ class VExporter {
     }
 }
 
+class VJustSchoolExporter {
+    condition: string = '/';
+    filteredSheets: Array<Array<{ name: string, data: Array<Array<string>> }>>;
+
+    constructor(public export_file: string, public regions: Array<VRegion>) {
+        this.filteredSheets = new Array<Array<{ name: string, data: Array<Array<string>> }>>();
+
+        for (let i = 0; i < regions.length; i++) {
+            let subregion = new Array<{ name: string, data: Array<Array<string>> }>();
+            for (let j = 0; j < regions[i].ssr.subreigons.length; j++) {
+                let filtered = new Array<Array<string>>();
+                filtered.push(["小区名称", "区域", "总价", "首付", "平米", "单价", "楼层年代", "对口小学", "小学等级", "对口中学", "中学等级", "网页地址"]);
+                subregion.push({ name: regions[i].ssr.subreigons[j].name, data: filtered });
+            }
+            this.filteredSheets.push(subregion);
+        }
+
+        this.asyncbuild();
+    }
+
+    private syncbuild() {
+        let searcher = new VSyncSearcher(this.condition);
+        for (let i = 0; i < this.regions.length; i++) {
+            for (let j = 0; j < this.regions[i].ssr.subreigons.length; j++) {
+                let searchResult = searcher.searchSubRegion(this.regions[i].ssr.subreigons[j], this.regions[i].primary, this.regions[i].junior);
+                this.filteredSheets[i][j].data = this.filteredSheets[i][j].data.concat(searchResult);
+            }
+        }
+        this.export();
+    }
+
+    private asyncbuild() {
+        let searcher = new VAsyncSearcher(this.condition);
+        let curidx = 0;
+        let cursubidx = 0;
+
+        let finishcount = 0;
+        let dosearch = () => {
+            if (curidx < this.regions.length) {
+                let i = curidx;
+                let j = cursubidx;
+                cursubidx += 1;
+                searcher.searchSubRegion(this.regions[i].ssr.subreigons[j], this.regions[i].primary, this.regions[i].junior, (searchResult: Array<Array<string>>) => {
+                    this.filteredSheets[i][j].data = this.filteredSheets[i][j].data.concat(searchResult);
+                    if (cursubidx == this.regions[i].ssr.subreigons.length) {
+                        curidx += 1;
+                        cursubidx = 0;
+                        dosearch();
+                    } else {
+                        dosearch();
+                    }
+                })
+            } else {
+                this.export();
+            }
+        }
+        dosearch();
+    }
+
+    private export() {
+        console.log("export total count = " + totalmarkcount);
+        let out = new Array<{ name: string, data: Array<Array<string>> }>();
+        for (let i = 0; i < this.filteredSheets.length; i++) {
+            for (let j = 0; j < this.filteredSheets[i].length; j++) {
+                out.push(this.filteredSheets[i][j]);
+            }
+        }
+
+        let buffer = xlsx.build(out);
+        fs.writeFileSync(this.export_file, buffer);
+    }
+}
+
 class VRegionBuilder {
     static Build(name: string, buildinfoxlsx: string, pschoolxlsx: string, jschoolxlsx: string | null): VRegion {
         let bi = xlsx.parse(buildinfoxlsx);
@@ -554,3 +627,5 @@ class VRegionBuilder {
 let pudongregion = VRegionBuilder.Build("浦东", "D:\\OneDrive\\House\\pudong_build.xlsx", "D:\\OneDrive\\House\\pudong_xiaoxue.xls", "D:\\OneDrive\\House\\pudong_zhongxue.xls");
 let xuhuiregion = VRegionBuilder.Build("徐汇", "D:\\OneDrive\\House\\xuhui_build.xlsx", "D:\\OneDrive\\House\\xuhui_xiaoxue.xlsx", null);
 let exporter = new VExporter("D:\\result.xlsx", [pudongregion, xuhuiregion]);
+//let beicairegion = new VRegion("北蔡", new VSearchSubReigonList([new VSubRegion("beicai", "北蔡")]), pudongregion.primary, pudongregion.junior);
+//let exporter = new VJustSchoolExporter("D:\\result.xlsx", [beicairegion]);
