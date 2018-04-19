@@ -49,9 +49,9 @@ class VSchoolFindResult {
 class VAsyncSearcher {
     url_basepart: string = 'https://sh.lianjia.com/ershoufang/';
     url_pagepart: string = '/pg'
-    url_conditionpart: string = 'l2bp200ep400/';
+    //url_conditionpart: string = 'l2bp200ep400/';
 
-    constructor() { }
+    constructor(private url_conditionpart: string) { }
 
     searchRegion(region: VRegion, suc: (data: Array<Array<string>>) => void) {
         console.log("start search region : " + region.name);
@@ -282,9 +282,9 @@ class VAsyncSearcher {
 class VSyncSearcher {
     url_basepart: string = 'https://sh.lianjia.com/ershoufang/';
     url_pagepart: string = '/pg'
-    url_conditionpart: string = 'l2bp200ep380/';
+    //url_conditionpart: string = 'l2bp200ep400/';
 
-    constructor() { }
+    constructor(private url_conditionpart: string) { }
 
     searchReigon(region: VRegion): Array<Array<string>> {
         console.log("start search region : " + region.name);
@@ -454,6 +454,7 @@ class VSyncSearcher {
 }
 
 class VExporter {
+    condition: string = 'l2bp200ep400/';
     filteredSheets: Array<{ name: string, data: Array<Array<string>> }>;
 
     constructor(public export_file: string, public regions: Array<VRegion>) {
@@ -469,7 +470,7 @@ class VExporter {
     }
 
     private syncbuild() {
-        let searcher = new VSyncSearcher();
+        let searcher = new VSyncSearcher(this.condition);
         for (let i = 0; i < this.regions.length; i++) {
             let searchResult = searcher.searchReigon(this.regions[i]);
             this.filteredSheets[i].data = this.filteredSheets[i].data.concat(searchResult);
@@ -478,7 +479,7 @@ class VExporter {
     }
 
     private asyncbuild() {
-        let searcher = new VAsyncSearcher();
+        let searcher = new VAsyncSearcher(this.condition);
         let curidx = 0;
 
         let finishcount = 0;
@@ -550,6 +551,6 @@ class VRegionBuilder {
     }
 }
 
-let pudongregion = VRegionBuilder.Build("浦东", "D:\\OneDrive\\pudong_build.xlsx", "D:\\OneDrive\\pudong_xiaoxue.xls", "D:\\OneDrive\\pudong_zhongxue.xls");
-let xuhuiregion = VRegionBuilder.Build("徐汇", "D:\\OneDrive\\xuhui_build.xlsx", "D:\\OneDrive\\xuhui_xiaoxue.xlsx", null);
+let pudongregion = VRegionBuilder.Build("浦东", "D:\\OneDrive\\House\\pudong_build.xlsx", "D:\\OneDrive\\House\\pudong_xiaoxue.xls", "D:\\OneDrive\\House\\pudong_zhongxue.xls");
+let xuhuiregion = VRegionBuilder.Build("徐汇", "D:\\OneDrive\\House\\xuhui_build.xlsx", "D:\\OneDrive\\House\\xuhui_xiaoxue.xlsx", null);
 let exporter = new VExporter("D:\\result.xlsx", [pudongregion, xuhuiregion]);
