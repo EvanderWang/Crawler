@@ -3,6 +3,7 @@ import * as asyncrequest from "request";
 import * as cheerio from "cheerio";
 import xlsx from 'node-xlsx'; 
 import * as fs from "fs";
+import * as FormData from 'form-data';
 
 let totalmarkcount = 0;
 
@@ -629,3 +630,12 @@ let xuhuiregion = VRegionBuilder.Build("徐汇", "D:\\OneDrive\\House\\xuhui_bui
 let exporter = new VExporter("D:\\result.xlsx", [pudongregion, xuhuiregion]);
 //let beicairegion = new VRegion("北蔡", new VSearchSubReigonList([new VSubRegion("beicai", "北蔡")]), pudongregion.primary, pudongregion.junior);
 //let exporter = new VJustSchoolExporter("D:\\result.xlsx", [beicairegion]);
+
+//let fd = new FormData();
+//fd.append("show", "community");
+//fd.append("p", "1");
+//fd.append("key", "泾东小区");
+//
+//asyncrequest.get("http://www.xingdd.com/community/searchCommunities", { form: fd }, (error: any, response: any, body: any) => {
+//    let i = 0;
+//});
