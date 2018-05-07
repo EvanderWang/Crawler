@@ -205,7 +205,7 @@ class VAsyncSearcher {
         });
     }
 
-    private markHouse(house: cheerio.Element, listpage$: cheerio.Static, srname: string, primaryResult: VSchoolFindResult, juniorResult: VSchoolFindResult | null): Array<string> {
+    private markHouse(house: cheerio.Element, listpage$: cheerio.Static, srname: string, primaryResult: VSchoolFindResult, juniorResult: VSchoolFindResult | null): Array<string> | null {
         let detailurl = house.children[0].attribs["href"];
         let xiaoquname = listpage$(house.children[1].children[1].children[0].children[1]).text();
         let price = listpage$(house.children[1].children[5].children[0].children[0]).text();
@@ -218,6 +218,10 @@ class VAsyncSearcher {
                 break;
             }
         }
+        if (Number(size) < 50) {
+            return null;
+        }
+
         let levelinfo = listpage$(house.children[1].children[2].children[0]).text();
         let levelinfos = levelinfo.split('-');
         let level = levelinfos[0];
@@ -379,7 +383,7 @@ class VSyncSearcher {
         return rtValue;
     }
 
-    private markHouse(house: cheerio.Element, listpage$: cheerio.Static, srname: string, primaryResult: VSchoolFindResult, juniorResult: VSchoolFindResult | null): Array<string> {
+    private markHouse(house: cheerio.Element, listpage$: cheerio.Static, srname: string, primaryResult: VSchoolFindResult, juniorResult: VSchoolFindResult | null): Array<string> | null {
         let detailurl = house.children[0].attribs["href"];
         let xiaoquname = listpage$(house.children[1].children[1].children[0].children[1]).text();
         let price = listpage$(house.children[1].children[5].children[0].children[0]).text();
@@ -392,6 +396,10 @@ class VSyncSearcher {
                 break;
             }
         }
+        if (Number(size) < 50) {
+            return null;
+        }
+
         let levelinfo = listpage$(house.children[1].children[2].children[0]).text();
         let levelinfos = levelinfo.split('-');
         let level = levelinfos[0];
@@ -455,7 +463,7 @@ class VSyncSearcher {
 }
 
 class VExporter {
-    condition: string = 'l2bp200ep400/';
+    condition: string = 'bp200ep400/';
     filteredSheets: Array<{ name: string, data: Array<Array<string>> }>;
 
     constructor(public export_file: string, public regions: Array<VRegion>) {
@@ -625,9 +633,12 @@ class VRegionBuilder {
     }
 }
 
-let pudongregion = VRegionBuilder.Build("浦东", "D:\\OneDrive\\House\\pudong_build.xlsx", "D:\\OneDrive\\House\\pudong_xiaoxue.xls", "D:\\OneDrive\\House\\pudong_zhongxue.xls");
-let xuhuiregion = VRegionBuilder.Build("徐汇", "D:\\OneDrive\\House\\xuhui_build.xlsx", "D:\\OneDrive\\House\\xuhui_xiaoxue.xlsx", null);
-let exporter = new VExporter("D:\\result.xlsx", [pudongregion, xuhuiregion]);
+//let pudongregion = VRegionBuilder.Build("浦东", "D:\\OneDrive\\House\\pudong_build.xlsx", "D:\\OneDrive\\House\\pudong_xiaoxue.xls", "D:\\OneDrive\\House\\pudong_zhongxue.xls");
+//let xuhuiregion = VRegionBuilder.Build("徐汇", "D:\\OneDrive\\House\\xuhui_build.xlsx", "D:\\OneDrive\\House\\xuhui_xiaoxue.xlsx", null);
+//let exporter = new VExporter("D:\\result.xlsx", [pudongregion, xuhuiregion]);
+
+// Region with school html page test.
+
 //let beicairegion = new VRegion("北蔡", new VSearchSubReigonList([new VSubRegion("beicai", "北蔡")]), pudongregion.primary, pudongregion.junior);
 //let exporter = new VJustSchoolExporter("D:\\result.xlsx", [beicairegion]);
 
@@ -639,3 +650,46 @@ let exporter = new VExporter("D:\\result.xlsx", [pudongregion, xuhuiregion]);
 //asyncrequest.get("http://www.xingdd.com/community/searchCommunities", { form: fd }, (error: any, response: any, body: any) => {
 //    let i = 0;
 //});
+
+
+// Russia api test.
+
+let auth = "test86:8888pass";
+let buff = new Buffer(auth);
+let base64auth = buff.toString('base64');
+
+let resultlogin = request("POST", "https://develop.3d-smile.com/api/v1/auth/login/", {
+    headers: {
+        "Authorization": "Basic " + base64auth,
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+});
+
+let token = JSON.parse(new Buffer(<string>resultlogin.body, 'base64').toString('ascii')).token;
+
+let resultcreatejob = request("POST", "https://develop.3d-smile.com/api/v1/job/create/", {
+    headers: {
+        "Authorization": "Token " + token,
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    },
+    body: '{ "patient_tag": "中文名称测试chinesechartest" }'
+});
+
+
+//let token = "8f2c3644d5f188c22fe96301bdf5f4e99d1d210952c08310adb9512f7e73d802";
+//let resultgetjob = request("GET", "https://develop.3d-smile.com/api/v1/job/", {
+//    headers: {
+//        "Authorization": "Token " + token,
+//        "Accept": "application/json",
+//        "Content-Type": "application/json"
+//    }
+//});
+
+let buffresult = new Buffer(<string>resultcreatejob.body, 'base64');
+let resulttext = buffresult.toString('ascii');
+
+
+
+console.log(resulttext);
