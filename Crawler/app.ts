@@ -7,6 +7,11 @@ import * as FormData from 'form-data';
 
 let totalmarkcount = 0;
 
+let refuseSquare = 45;
+let maxPrize = 300;
+let minPrize = 200;
+let checkSchool = false;
+
 class VSchoolList {
     constructor(public keywords: Array<string>) { }
 }
@@ -195,9 +200,14 @@ class VAsyncSearcher {
                     juniorResult = this.findSchool(xiaoquName, xiaoquLocations, junior);
                 }
 
-                if (primaryResult.needMark) {
+                if (checkSchool) {
+                    if (primaryResult.needMark) {
+                        rtValue = this.markHouse(house, listpage$, srname, primaryResult, juniorResult);
+                    }
+                } else {
                     rtValue = this.markHouse(house, listpage$, srname, primaryResult, juniorResult);
                 }
+
                 suc(rtValue);
             } else {
                 suc(rtValue);
@@ -218,7 +228,7 @@ class VAsyncSearcher {
                 break;
             }
         }
-        if (Number(size) < 50) {
+        if (Number(size) < refuseSquare) {
             return null;
         }
 
@@ -377,9 +387,14 @@ class VSyncSearcher {
             juniorResult = this.findSchool(xiaoquName, xiaoquLocations, junior);
         }
 
-        if (primaryResult.needMark) {
+        if (checkSchool) {
+            if (primaryResult.needMark) {
+                rtValue = this.markHouse(house, listpage$, srname, primaryResult, juniorResult);
+            }
+        } else {
             rtValue = this.markHouse(house, listpage$, srname, primaryResult, juniorResult);
         }
+
         return rtValue;
     }
 
@@ -396,7 +411,7 @@ class VSyncSearcher {
                 break;
             }
         }
-        if (Number(size) < 50) {
+        if (Number(size) < refuseSquare) {
             return null;
         }
 
@@ -463,7 +478,7 @@ class VSyncSearcher {
 }
 
 class VExporter {
-    condition: string = 'bp200ep400/';
+    condition: string = 'bp' + minPrize + 'ep' + maxPrize + '/';
     filteredSheets: Array<{ name: string, data: Array<Array<string>> }>;
 
     constructor(public export_file: string, public regions: Array<VRegion>) {
