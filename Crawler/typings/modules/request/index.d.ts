@@ -111,7 +111,7 @@ export function getPublicSuffix (hostname: string): string;
  * - lowest .creationIndex (to get beyond the 1ms precision)
  *
  * ```
- * var cookies = [ \/* unsorted array of Cookie objects *\/ ];
+ * let cookies = [ \/* unsorted array of Cookie objects *\/ ];
  * cookies = cookies.sort(cookieCompare);
  * ```
  *
@@ -783,19 +783,19 @@ namespace request {
 
   export interface CookieJar {
     // RequestJar.prototype.setCookie = function(cookieOrStr, uri, options) {
-    //   var self = this
+    //   let self = this
     //   return self._jar.setCookieSync(cookieOrStr, uri, options || {})
     // }
     setCookie(cookieOrString: Cookie | string, uri: string, options?: SetCookieOptions): Cookie;
 
     // RequestJar.prototype.getCookieString = function(uri) {
-    //   var self = this
+    //   let self = this
     //   return self._jar.getCookieStringSync(uri)
     // }
     getCookieString(uri: string): string;
 
     // RequestJar.prototype.getCookies = function(uri) {
-    //   var self = this
+    //   let self = this
     //   return self._jar.getCookiesSync(uri)
     // }
     getCookies(uri: string): Cookie[];
