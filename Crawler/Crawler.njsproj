@@ -45,28 +45,20 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="typings\modules\cheerio\typings.json" />
-    <Content Include="typings\modules\request\typings.json" />
     <TypeScriptCompile Include="app.ts" />
     <Content Include="package.json" />
     <Content Include="README.md" />
     <TypeScriptCompile Include="async.ts" />
-    <TypeScriptCompile Include="typings\index.d.ts" />
-    <TypeScriptCompile Include="typings\modules\cheerio\index.d.ts" />
-    <TypeScriptCompile Include="typings\modules\request\index.d.ts" />
     <TypeScriptCompile Include="VDataManager.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="VHousePageLoader.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
     <TypeScriptCompile Include="VInfoManager.ts" />
     <TypeScriptCompile Include="VStaticStrings.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="typings\" />
-    <Folder Include="typings\modules\" />
-    <Folder Include="typings\modules\cheerio\" />
-    <Folder Include="typings\modules\request\" />
   </ItemGroup>
   <!-- Do not delete the following Import Project.  While this appears to do nothing it is a marker for setting TypeScript properties before our import that depends on them. -->
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="False" />

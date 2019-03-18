@@ -7,8 +7,11 @@
     "name": "27925"
   },
   "dependencies": {
+    "@types/cheerio": "^0.22.11",
     "@types/exceljs": "^0.5.3",
+    "@types/form-data": "^2.2.1",
     "@types/hashmap": "^2.0.29",
+    "@types/request": "^2.48.1",
     "cheerio": "^1.0.0-rc.2",
     "exceljs": "^1.7.0",
     "form-data": "^2.3.2",
