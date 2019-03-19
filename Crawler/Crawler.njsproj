@@ -55,7 +55,10 @@
     <TypeScriptCompile Include="VHousePageLoader.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
-    <TypeScriptCompile Include="VInfoManager.ts" />
+    <TypeScriptCompile Include="VMetroInfoManager.ts" />
+    <TypeScriptCompile Include="VSchoolInfoManager.ts">
+      <SubType>Code</SubType>
+    </TypeScriptCompile>
     <TypeScriptCompile Include="VStaticStrings.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
