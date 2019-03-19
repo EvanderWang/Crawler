@@ -194,7 +194,7 @@ export class VDataManager {
                 fgColor: { argb: VEBkgColor[val[1].type] },
             };
             //newRow.font.color = { argb: VEFontColor[val[1].type] };
-            newRow.alignment = { vertical: 'middle', horizontal: 'center' }
+            newRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
             let option = {
                 tl: { col: VEExportInfoType.SHAPE_URI, row: rowCurIdx },
