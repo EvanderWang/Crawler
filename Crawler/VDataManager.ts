@@ -2,12 +2,15 @@
 import HashMap = require("hashmap");
 import * as SS from "./VStaticStrings";
 import { Vasync } from "./async";
-import { VMetroInfoManager } from "./VMetroInfoManager";
+import { VMetroInfoManager, VMetroCreator, VMetroNearCell } from "./VMetroInfoManager";
 import { VSchoolInfoManager } from "./VSchoolInfoManager";
 import * as cheerio from "cheerio";
 import request from "sync-request";
 import * as asyncrequest from "request";
-import * as base64 from "base-64";
+
+const sleep = (milliseconds) => {
+    return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
 
 export enum VEDataType {
     NEW,
@@ -24,7 +27,7 @@ export class VSDataChange {
 
 export var VETypeStr = ["新 : ", "旧 : ", "跌 : ", "涨 : ", "售 : ", "下 : "];
 //export var VEFontColor = ["FFFFFF00", "FF000000", "FF00FF00", "FFFF0000", "FF000000", "FF000000"];
-export var VEBkgColor = ["FF00A8ED", "FFFFFFFF", "FFFFFFFF", "FFFFFFFF", "FF00FF00", "FF7F7F7F"];
+export var VEBkgColor = ["FF71D6FF", "FFFFFFFF", "FF71FB78", "FFFF6161", "FFAD3EB0", "FFB5B5B5"];
 
 export enum VEExportInfoType {
     URL,
@@ -52,17 +55,24 @@ export class VHouse {
     size: number;
     floorAndYear: string;
     shapeURI: string;
+    favourate: boolean;
 
     constructor() { }
 
     loadFromExcelRow(row: Excel.Row) {
-        this.url = row.getCell(VEExportInfoType.URL + 1).value.toString();
+        this.url = row.getCell(VEExportInfoType.URL + 1).text;
         this.cellname = row.getCell(VEExportInfoType.CELLNAME + 1).value.toString();
         this.region = row.getCell(VEExportInfoType.REGION + 1).value.toString();
         this.prize = Number(row.getCell(VEExportInfoType.PRIZE + 1).value.toString());
         this.size = Number(row.getCell(VEExportInfoType.SIZE + 1).value.toString());
         this.floorAndYear = row.getCell(VEExportInfoType.FLOOR_AND_YEAR + 1).value.toString();
         this.shapeURI = row.getCell(VEExportInfoType.SHAPE_URI + 1).value.toString();
+
+        if (row.actualCellCount > g_fisrtRow.length) {
+            this.favourate = true;
+        } else {
+            this.favourate = false;
+        }
     }
 
     loadFromPage(pageurl: string, page$: CheerioStatic) {
@@ -79,38 +89,46 @@ export class VHouse {
         this.floorAndYear = content.children('.houseInfo').children('.area').children('.subInfo').text() + "\n" + content.children('.houseInfo').children('.room').children('.subInfo').text();
 
         this.shapeURI = img.children('.thumbnail').children('.smallpic').children('li[data-desc="户型图"]').data("pic");
+
+        this.favourate = false;
     }
 }
 
 export class VHouseUpdater {
     constructor() { }
 
-    static UpdateHouse(house: VHouse): VSDataChange {
-        let page$ = cheerio.load(request("GET", house.url).getBody());
+    static UpdateHouse(house: VHouse, cb: (change: VSDataChange) => void) {
+        asyncrequest(house.url, (error: any, response: any, body: any) => {
+            if (!error && response.statusCode == 200) {
+                let page$ = cheerio.load(response.body);
 
-        let sellDetail = page$('.sellDetailHeader');
-        if (sellDetail) {
-            let przRm = page$('.price isRemove');
-            if (przRm) {
-                return new VSDataChange(VEDataType.DISAPPER, Number(przRm.children('.total').text()));
-            } else {
-                let view = page$('.overview');
-                let content = view.children('.content');
-                let prize = Number(content.children('.price ').children('.total').text());
+                let sellDetail = page$('.sellDetailHeader');
+                if (sellDetail.length) {
+                    let przRm = page$('.price isRemove');
+                    if (przRm.length) {
+                        cb(new VSDataChange(VEDataType.DISAPPER, Number(przRm.children('.total').text())));
+                    } else {
+                        let view = page$('.overview');
+                        let content = view.children('.content');
+                        let prize = Number(content.children('.price ').children('.total').text());
 
-                if (prize == house.prize) {
-                    return new VSDataChange(VEDataType.KEEP_OLD, 0);
-                } else if (prize > house.prize) {
-                    return new VSDataChange(VEDataType.UP_PRIZE, prize - house.prize);
+                        if (prize == house.prize) {
+                            cb(new VSDataChange(VEDataType.KEEP_OLD, 0));
+                        } else if (prize > house.prize) {
+                            cb(new VSDataChange(VEDataType.UP_PRIZE, prize - house.prize));
+                        } else {
+                            cb(new VSDataChange(VEDataType.DOWN_PRIZE, prize - house.prize));
+                        }
+                    }
                 } else {
-                    return new VSDataChange(VEDataType.DOWN_PRIZE, prize - house.prize);
+                    let dpStr = page$('.dealTotalPrice').text();
+                    let dp = Number(dpStr.slice(0, dpStr.length - 1));
+                    cb(new VSDataChange(VEDataType.SELLED, dp));
                 }
+            } else {
+                cb(new VSDataChange(VEDataType.DISAPPER, house.prize));
             }
-        } else {
-            let dpStr = page$('.dealTotalPrice').text();
-            let dp = Number(dpStr.slice(0, dpStr.length - 1));
-            return new VSDataChange(VEDataType.SELLED, dp);
-        }
+        });
     }
 }
 
@@ -124,15 +142,30 @@ export class VDataManager {
 
     private loadFromExcel(done: () => void) {
         let workbook = new Excel.Workbook();
-        workbook.xlsx.readFile(SS.OneDriveHouseFolder + this.dataFile).then(() => {
+        workbook.xlsx.readFile(SS.OneDriveHouseFolder + '__temp_' + this.dataFile).then(() => {
             let sheet = workbook.getWorksheet("Sheet1");
-            for (let i = 2; i <= sheet.rowCount; i++) {
-                let row = sheet.getRow(i);
-                let house = new VHouse();
-                house.loadFromExcelRow(row);
-                this.datas.set(house.url, [house, VHouseUpdater.UpdateHouse(house)]);
+            let waits = Vasync.createAWaitAll(sheet.rowCount - 1, done);
+
+            let curIdx = 2;
+            let update = () => {
+                if (curIdx <= sheet.rowCount) {
+                    let row = sheet.getRow(curIdx);
+                    let house = new VHouse();
+                    house.loadFromExcelRow(row);
+                    let waitObj = waits[curIdx - 2];
+
+                    let logIdx = curIdx;
+                    curIdx += 1;
+                    VHouseUpdater.UpdateHouse(house, (change: VSDataChange) => {
+                        console.log("update house : " + logIdx);
+                        this.datas.set(house.url, [house, change]);
+                        waitObj.FinishFunc();
+                    })
+
+                    sleep(20).then(update);
+                }
             }
-            done();
+            update();
         }).catch(() => {
             done();
         });
@@ -142,8 +175,6 @@ export class VDataManager {
         let workbook = new Excel.Workbook();
         let sheet = workbook.addWorksheet("Sheet1");
         sheet.addRow(g_fisrtRow);
-
-        let rowCurIdx = 1;
 
         let keys = this.datas.keys();
         let waits = Vasync.createAWaitAll(keys.length, () => {
@@ -160,6 +191,7 @@ export class VDataManager {
             let primarySchool = siMngr.primaryMap.has(val[0].cellname) ? siMngr.primaryMap.get(val[0].cellname).name : "unknown";
             let juniorSchool = siMngr.juniorMap.has(val[0].cellname) ? siMngr.juniorMap.get(val[0].cellname).name : "unknown";
             let metros = miMngr.metroMap.get(val[0].cellname);
+            metros = metros.sort((a: VMetroNearCell, b: VMetroNearCell) => { return a.walkDis - b.walkDis; });
             let metroStr = "";
             if (metros && metros.length > 0) {
                 metroStr += metros[0].name + ":" + metros[0].walkDis;
@@ -170,7 +202,7 @@ export class VDataManager {
                 }
             }
 
-            let newRow = sheet.addRow([{
+            let rowData = [{
                 text: val[0].url,
                 hyperlink: val[0].url
             }
@@ -186,7 +218,13 @@ export class VDataManager {
                 , metroStr
                 , val[0].shapeURI ? val[0].shapeURI : "无"
                 , VETypeStr[val[1].type] + val[1].value
-            ]);
+            ];
+
+            if (val[0].favourate) {
+                rowData.push("@");
+            }
+
+            let newRow = sheet.addRow(rowData);
             newRow.height = 96;
             newRow.fill = {
                 type: 'pattern',
@@ -195,29 +233,34 @@ export class VDataManager {
             };
             //newRow.font.color = { argb: VEFontColor[val[1].type] };
             newRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-
-            let option = {
-                tl: { col: VEExportInfoType.SHAPE_URI, row: rowCurIdx },
-                br: { col: VEExportInfoType.SHAPE_URI + 1, row: rowCurIdx + 1 },
-                editAs: 'oneCell'
-            }
-            let waitObj = waits[keyIdx];
-
-            if (val[0].shapeURI) {
-                asyncrequest(val[0].shapeURI, { encoding: null }, (error: any, response: any, body: any) => {
-                    if (!error && response.statusCode == 200) {
-                        let base64Data = "data:image/jpeg;base64," + Buffer.from(body).toString('base64');
-                        let houseImgId = workbook.addImage({ base64: base64Data, extension: 'jpeg' });
-                        sheet.addImage(houseImgId, option);
-                    }
-                    waitObj.FinishFunc();
-                });
-            } else {
-                waitObj.FinishFunc();
-            }
-            rowCurIdx += 1;
         }
-        
-        
+
+        workbook.xlsx.writeFile(SS.OneDriveHouseFolder + '__temp_' + this.dataFile).then(() => {
+            let rowCurIdx = 1;
+            for (let keyIdx = 0; keyIdx < keys.length; keyIdx++) {
+                let val = this.datas.get(keys[keyIdx]);
+
+                let option = {
+                    tl: { col: VEExportInfoType.SHAPE_URI, row: rowCurIdx },
+                    br: { col: VEExportInfoType.SHAPE_URI + 1, row: rowCurIdx + 1 },
+                    editAs: 'oneCell'
+                }
+                let waitObj = waits[keyIdx];
+
+                if (val[0].shapeURI) {
+                    asyncrequest(val[0].shapeURI, { encoding: null }, (error: any, response: any, body: any) => {
+                        if (!error && response.statusCode == 200) {
+                            let base64Data = "data:image/jpeg;base64," + Buffer.from(body).toString('base64');
+                            let houseImgId = workbook.addImage({ base64: base64Data, extension: 'jpeg' });
+                            sheet.addImage(houseImgId, option);
+                        }
+                        waitObj.FinishFunc();
+                    });
+                } else {
+                    waitObj.FinishFunc();
+                }
+                rowCurIdx += 1;
+            }
+        });
     }
 }

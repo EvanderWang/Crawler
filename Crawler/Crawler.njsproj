@@ -52,9 +52,6 @@
     <TypeScriptCompile Include="VDataManager.ts">
       <SubType>Code</SubType>
     </TypeScriptCompile>
-    <TypeScriptCompile Include="VHousePageLoader.ts">
-      <SubType>Code</SubType>
-    </TypeScriptCompile>
     <TypeScriptCompile Include="VMetroInfoManager.ts" />
     <TypeScriptCompile Include="VSchoolInfoManager.ts">
       <SubType>Code</SubType>

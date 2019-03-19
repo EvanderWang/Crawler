@@ -140,20 +140,41 @@ class VRegionSearcher {
     }
 }
 
+
 let schoolMngr = new VSchoolInfoManager(() => {
     let metroMngr = new VMetroInfoManager(() => {
         let dataMngr = new VDataManager(() => {
             let seacher = new VRegionSearcher(dataMngr, metroMngr);
 
-            seacher.searchRegion("北蔡", "beicai", () => {
-                
+            let done = () => {
                 metroMngr.SaveMetroCells(() => {
                     dataMngr.saveToExcel(metroMngr, schoolMngr, () => {
                         console.log("DONE.");
                     });
                 });
+            };
 
-            })
+            let workbook = new Excel.Workbook();
+            workbook.xlsx.readFile(SS.OneDriveHouseFolder + 'search_region.xlsx').then(() => {
+                let sheet = workbook.getWorksheet("Sheet1");
+                let curRow = 1;
+                let search = () => {
+                    if (curRow <= sheet.rowCount) {
+                        let row = sheet.getRow(curRow);
+                        let regionName = row.getCell(1).value.toString();
+                        let regionPart = row.getCell(2).value.toString();
+                        curRow += 1;
+                        seacher.searchRegion(regionName, regionPart, search);
+                    } else {
+                        done();
+                    }
+                }
+                search();
+            }).catch(() => {
+                done();
+            });
+
+            
         });
     });
 });
