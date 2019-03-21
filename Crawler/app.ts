@@ -11,12 +11,12 @@ import { VSchoolInfoManager } from "./VSchoolInfoManager";
 import { VSDataChange, VHouse, VDataManager } from "./VDataManager";
 
 let refuseSquare = 65;
-let maxPrize = 400;
-let minPrize = 100;
+let maxPrize = 450;
+let minPrize = 200;
 
 var lianjia_basepart = 'https://sh.lianjia.com/ershoufang/';
 var lianjia_pagepart = '/pg';
-var lianjia_condpart = 'l3l2bp' + minPrize + 'ep' + maxPrize + '/';
+var lianjia_condpart = 'l2l3l4l5l6ba' + refuseSquare + 'ea10000bp' + minPrize + 'ep' + maxPrize + '/';
 var city = SS.Gaode_city_shanghai;
 
 
@@ -43,7 +43,7 @@ class VRegionSearcher {
             let curPage = 0;
             let search = () => {
                 curPage += 1;
-                console.log("start search page : " + curPage);
+                console.log("start search page : " + curPage + " page count : " + pagecount);
                 let pageListUrl = lianjia_basepart + lianjia_url + lianjia_pagepart + curPage + lianjia_condpart;
                 let pageList$ = cheerio.load(request("GET", pageListUrl).getBody());
 
@@ -97,22 +97,22 @@ class VRegionSearcher {
         }
         let houseUrl = itemEle.children[0].attribs["href"];
         if (!this.dMngr.datas.has(houseUrl)) {
-            let infoStr = itemEle.children[1].children[1].children[0].children[2].data;
-            let infos = infoStr.split('|');
-            let size = 0;
-            for (let i = 0; i < infos.length; i++) {
-                let pos = infos[i].indexOf("平米");
-                if (pos != -1) {
-                    size = Number(infos[i].slice(0, pos));
-                    break;
-                }
-            }
-
-            if (size < refuseSquare) {
-                done();
-                return;
-            } else {
-                console.log("start mark item");
+            //let infoStr = itemEle.children[1].children[1].children[0].children[2].data;
+            //let infos = infoStr.split('|');
+            //let size = 0;
+            //for (let i = 0; i < infos.length; i++) {
+            //    let pos = infos[i].indexOf("平米");
+            //    if (pos != -1) {
+            //        size = Number(infos[i].slice(0, pos));
+            //        break;
+            //    }
+            //}
+            //
+            //if (size < refuseSquare) {
+            //    done();
+            //    return;
+            //} else {
+                //console.log("start mark item");
                 let trim = (s: string): string => {
                     return s.replace(/(^\s*)|(\s*$)/g, "");
                 }
@@ -120,7 +120,7 @@ class VRegionSearcher {
                 this.mMnrg.MarkMetro(cellName, city, () => {
                     this.markHouse(houseUrl, done);
                 });
-            }
+            //}
         } else {
             done();
             return;
@@ -135,46 +135,61 @@ class VRegionSearcher {
                 house.loadFromPage(houseUrl, housePage$);
                 this.dMngr.datas.set(houseUrl, [house, new VSDataChange()]);
                 done();
+            } else {
+                console.log("error at request houseURL : " + houseUrl);
+                done();
             }
         });
     }
 }
 
-
+var saveSubFolder = "results\\";
 let schoolMngr = new VSchoolInfoManager(() => {
     let metroMngr = new VMetroInfoManager(() => {
-        let dataMngr = new VDataManager(() => {
-            let seacher = new VRegionSearcher(dataMngr, metroMngr);
 
-            let done = () => {
-                metroMngr.SaveMetroCells(() => {
-                    dataMngr.saveToExcel(metroMngr, schoolMngr, () => {
-                        console.log("DONE.");
+        let done = () => {
+            metroMngr.SaveMetroCells(() => {
+                console.log("DONE.");
+            });
+        };
+
+        let regionSearch = (rName: string, rPart: string, done: () => void) => {
+            let dataMngr = new VDataManager(() => {
+                let seacher = new VRegionSearcher(dataMngr, metroMngr);
+                seacher.searchRegion(rName, rPart, () => {
+                    metroMngr.SaveMetroCells(() => {
+                        dataMngr.saveToExcel(metroMngr, schoolMngr, () => {
+                            console.log("region finish : " + rName);
+                            done();
+                        });
                     });
                 });
-            };
+            }, saveSubFolder + "result_" + rName + ".xlsx");
 
-            let workbook = new Excel.Workbook();
-            workbook.xlsx.readFile(SS.OneDriveHouseFolder + 'search_region.xlsx').then(() => {
-                let sheet = workbook.getWorksheet("Sheet1");
-                let curRow = 1;
-                let search = () => {
-                    if (curRow <= sheet.rowCount) {
-                        let row = sheet.getRow(curRow);
-                        let regionName = row.getCell(1).value.toString();
-                        let regionPart = row.getCell(2).value.toString();
-                        curRow += 1;
-                        seacher.searchRegion(regionName, regionPart, search);
-                    } else {
+        };
+
+        let workbook = new Excel.Workbook();
+        workbook.xlsx.readFile(SS.OneDriveHouseFolder + 'search_region.xlsx').then(() => {
+            let sheet = workbook.getWorksheet("Sheet1");
+            let curRow = 1;
+            let search = () => {
+                if (curRow <= sheet.rowCount) {
+                    let row = sheet.getRow(curRow);
+                    if (row.actualCellCount != 2) {
                         done();
+                        return;
                     }
+                    let regionName = row.getCell(1).value.toString();
+                    let regionPart = row.getCell(2).value.toString();
+                    curRow += 1;
+                    regionSearch(regionName, regionPart, () => {
+                        search();
+                    });
+                } else {
+                    done();
                 }
-                search();
-            }).catch(() => {
-                done();
-            });
-
-            
+            }
+            search();
         });
     });
 });

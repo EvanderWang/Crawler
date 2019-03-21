@@ -21,7 +21,7 @@ export class VMetroCreator {
         asyncrequest(checkPos, (error: any, response: any, body: any) => {
             if (!error && response.statusCode == 200) {
                 let returndata = JSON.parse(response.body);
-                if (returndata.status == 1) {
+                if (returndata.status == 1 && returndata.geocodes.length) {
                     let pos = returndata.geocodes[0].location;
                     let checkMetro = encodeURI(SS.Gaode_MetroChecker + "location=" + pos + "&types=150500&radius=2000" + city + SS.Gaode_key);
                     asyncrequest(checkMetro, (error: any, response: any, body: any) => {
@@ -44,7 +44,7 @@ export class VMetroCreator {
                                         asyncrequest(checkWalkDis, (error: any, response: any, body: any) => {
                                             if (!error && response.statusCode == 200) {
                                                 let returndata = JSON.parse(response.body);
-                                                if (returndata.status == 1) {
+                                                if (returndata.status == 1 && returndata.route.paths.length) {
                                                     mnc.walkDis = returndata.route.paths[0].distance;
                                                     mnc.walkDur = returndata.route.paths[0].duration;
                                                     for (let i = 1; i < returndata.route.paths.length; i++) {
@@ -58,6 +58,7 @@ export class VMetroCreator {
                                                 }
                                             }
                                             console.log("error at gaode request.");
+                                            cb(new Array<VMetroNearCell>());
                                         });
                                     } else {
                                         cb(rtValue);
@@ -68,11 +69,13 @@ export class VMetroCreator {
                             } 
                         } 
                         console.log("error at gaode request.");
+                        cb(new Array<VMetroNearCell>());
                     });
                     return;
-                } 
+                }
             } 
             console.log("error at gaode request.");
+            cb(new Array<VMetroNearCell>());
         });
     }
 }
