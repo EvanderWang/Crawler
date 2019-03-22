@@ -168,6 +168,8 @@ let schoolMngr = new VSchoolInfoManager(() => {
 
         };
 
+        //regionSearch("唐镇", "tangzhen", done);
+
         let workbook = new Excel.Workbook();
         workbook.xlsx.readFile(SS.OneDriveHouseFolder + 'search_region.xlsx').then(() => {
             let sheet = workbook.getWorksheet("Sheet1");

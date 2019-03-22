@@ -110,13 +110,23 @@ export class VHouseUpdater {
 
                 let sellDetail = page$('.sellDetailHeader');
                 if (sellDetail.length) {
-                    let przRm = page$('.price isRemove');
+                    let przRm = page$('.isRemove');
                     if (przRm.length) {
                         cb(new VSDataChange(VEDataType.DISAPPER, Number(przRm.children('.total').text())));
                     } else {
                         let view = page$('.overview');
                         let content = view.children('.content');
                         let prize = Number(content.children('.price ').children('.total').text());
+
+                        if (house.shapeURI == "无") {
+                            let newShape = page$('thumbnail').children('.smallpic').children('li[data-desc="户型图"]').data("pic");
+                            if (newShape && newShape != "") {
+                                let lastPoint = newShape.lastIndexOf('.');
+                                let perPoint = newShape.lastIndexOf('.', lastPoint - 1);
+                                let curSize = newShape.substr(perPoint + 1, lastPoint - perPoint - 1);
+                                house.shapeURI = newShape.replace(curSize, "200x144");
+                            }
+                        }
 
                         if (prize == house.prize) {
                             cb(new VSDataChange(VEDataType.KEEP_OLD, prize));
@@ -127,6 +137,17 @@ export class VHouseUpdater {
                         }
                     }
                 } else {
+                    console.log("house sold : " + house.url);
+                    if (house.shapeURI == "无") {
+                        let newShape = page$('thumbnail').children().children('li[data-desc="户型图"]').data("src");
+                        if (newShape && newShape != "") {
+                            let lastPoint = newShape.lastIndexOf('.');
+                            let perPoint = newShape.lastIndexOf('.', lastPoint - 1);
+                            let curSize = newShape.substr(perPoint + 1, lastPoint - perPoint - 1);
+                            house.shapeURI = newShape.replace(curSize, "200x144");
+                        }
+                    }
+
                     let dpStr = page$('.dealTotalPrice').text();
                     let dp = Number(dpStr.slice(0, dpStr.length - 1));
                     cb(new VSDataChange(VEDataType.SELLED, dp));
@@ -262,7 +283,7 @@ export class VDataManager {
                         }
                         let waitObj = waits[keyIdx];
 
-                        if (val[0].shapeURI) {
+                        if (val[0].shapeURI && val[0].shapeURI != "无" ) {
                             asyncrequest(val[0].shapeURI, { encoding: null }, (error: any, response: any, body: any) => {
                                 if (!error && response.statusCode == 200) {
                                     let base64Data = "data:image/jpeg;base64," + Buffer.from(body).toString('base64');
