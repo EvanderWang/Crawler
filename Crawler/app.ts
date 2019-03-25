@@ -11,7 +11,7 @@ import { VSchoolInfoManager } from "./VSchoolInfoManager";
 import { VSDataChange, VHouse, VDataManager } from "./VDataManager";
 
 let refuseSquare = 65;
-let maxPrize = 450;
+let maxPrize = 451;
 let minPrize = 200;
 
 var lianjia_basepart = 'https://sh.lianjia.com/ershoufang/';
